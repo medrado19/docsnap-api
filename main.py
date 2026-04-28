@@ -15,18 +15,23 @@ async def upload_file(file: UploadFile = File(...)):
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "Extract client name, total amount, and date from this invoice"},
-                        {
-                            "type": "image_url",
-                            "image_url": f"data:image/jpeg;base64,{encoded}"
-                        }
-                    ]
+ messages = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": "Extract all data from this invoice"
+            },
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": file_url
                 }
-            ]
+            }
+        ]
+    }
+]
         )
 
         return {
