@@ -6,6 +6,10 @@ app = FastAPI()
 def home():
     return {"message": "DocSnap API is running 🚀"}
 
+@app.get("/test")
+def test():
+    return {"status": "working"}
+
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     return {
