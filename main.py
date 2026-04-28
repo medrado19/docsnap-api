@@ -9,3 +9,4 @@ def home():
 @app.get("/test")
 def test():
     return {"status": "working"}
+
