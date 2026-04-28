@@ -36,3 +36,4 @@ async def upload_file(file: UploadFile = File(...)):
 
     except Exception as e:
         return {"error": str(e)}
+
