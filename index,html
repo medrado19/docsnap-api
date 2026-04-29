@@ -29,7 +29,7 @@
       document.getElementById("output").textContent = "Processing...";
 
       try {
-        const response = await fetch("https://YOUR-RAILWAY-URL/upload", {
+        const response = await fetch("https://docsnap-api-production-0100.up.railway.app/upload", {
           method: "POST",
           body: formData
         });
