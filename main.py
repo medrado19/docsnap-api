@@ -10,6 +10,10 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def home():
     return {"message": "DocSnap API is running 🚀"}
 
+@app.get("/test")
+def test():
+    return {"status": "working"}
+
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     try:
@@ -26,7 +30,28 @@ async def upload_file(file: UploadFile = File(...)):
                     "content": [
                         {
                             "type": "text",
-                            "text": "Extract the client name, invoice date, total amount, and services from this invoice."
+                            "text": """
+Extract the invoice data from this image.
+
+Return ONLY valid JSON.
+Do not include explanations.
+Do not use markdown.
+
+Use this exact format:
+{
+  "client_name": "",
+  "invoice_date": "",
+  "total_amount": 0,
+  "services": [
+    {
+      "description": "",
+      "quantity": 0,
+      "unit_price": 0,
+      "total": 0
+    }
+  ]
+}
+"""
                         },
                         {
                             "type": "image_url",
