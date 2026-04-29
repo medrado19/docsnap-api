@@ -4,6 +4,7 @@ import base64
 import os
 import json
 from openai import OpenAI
+import psycopg2
 
 app = FastAPI()
 
@@ -17,13 +18,46 @@ app.add_middleware(
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# ✅ DATABASE CONNECTION
+DATABASE_URL = os.getenv("DATABASE_URL")
+conn = psycopg2.connect(DATABASE_URL)
+cursor = conn.cursor()
+
+
 @app.get("/")
 def home():
     return {"message": "DocSnap API is running 🚀"}
 
+
 @app.get("/test")
 def test():
     return {"status": "working"}
+
+
+# ✅ NEW: GET ALL INVOICES
+@app.get("/invoices")
+def get_invoices():
+    cursor.execute("""
+        SELECT client_name, invoice_date, total_amount, services, created_at
+        FROM invoices
+        ORDER BY created_at DESC
+    """)
+    
+    rows = cursor.fetchall()
+
+    result = []
+
+    for row in rows:
+        result.append({
+            "client_name": row[0],
+            "invoice_date": row[1],
+            "total_amount": row[2],
+            "services": row[3],
+            "created_at": str(row[4])
+        })
+
+    return result
+
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -76,7 +110,6 @@ Return ONLY JSON in this format:
 
         raw_output = response.choices[0].message.content
 
-        # Clean markdown formatting if present
         cleaned = raw_output.strip()
 
         if cleaned.startswith("```"):
@@ -87,6 +120,20 @@ Return ONLY JSON in this format:
         except:
             parsed_output = {"raw_text": cleaned}
 
+        # ✅ THIS IS THE IMPORTANT PART (STEP 4)
+        if "client_name" in parsed_output:
+            cursor.execute("""
+                INSERT INTO invoices (client_name, invoice_date, total_amount, services)
+                VALUES (%s, %s, %s, %s)
+            """, (
+                parsed_output.get("client_name"),
+                parsed_output.get("invoice_date"),
+                parsed_output.get("total_amount"),
+                json.dumps(parsed_output.get("services"))
+            ))
+
+            conn.commit()
+
         return {
             "filename": file.filename,
             "structured_data": parsed_output
@@ -94,11 +141,3 @@ Return ONLY JSON in this format:
 
     except Exception as e:
         return {"error": str(e)}
-
-import os
-import psycopg2
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-conn = psycopg2.connect(DATABASE_URL)
-cursor = conn.cursor()
