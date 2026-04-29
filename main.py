@@ -78,8 +78,8 @@ async def upload_file(file: UploadFile = File(...)):
                     "content": [
                         {
                             "type": "text",
-                            "text": """
-Extract the invoice data.
+                           "text": """
+Extract the invoice data AND categorize it.
 
 Return ONLY JSON in this format:
 {
@@ -97,8 +97,9 @@ Return ONLY JSON in this format:
   ]
 }
 
-Choose one clear category, such as:
+Choose ONE category:
 Repairs, Utilities, Rent, Supplies, Food, Marketing, Software, Transportation, Professional Services, Other.
+"""
                         },
                         {
                             "type": "image_url",
@@ -134,7 +135,8 @@ cursor.execute("""
     parsed_output.get("total_amount"),
     parsed_output.get("category"),
     json.dumps(parsed_output.get("services"))
-))     conn.commit()
+))    
+    conn.commit()
 
         return {
             "filename": file.filename,
@@ -147,9 +149,11 @@ cursor.execute("""
 @app.get("/invoices")
 def get_invoices():
     try:
-        cursor.execute("SELECT * FROM invoices ORDER BY created_at DESC")
-        rows = cursor.fetchall()
-
+        cursor.execute("""
+    SELECT client_name, invoice_date, total_amount, category, services, created_at
+    FROM invoices
+    ORDER BY created_at DESC
+""")
         invoices = []
         for row in rows:
             invoices.append({
