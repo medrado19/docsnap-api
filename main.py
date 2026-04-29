@@ -76,10 +76,16 @@ Return ONLY JSON in this format:
 
         raw_output = response.choices[0].message.content
 
+        # Clean markdown formatting if present
+        cleaned = raw_output.strip()
+
+        if cleaned.startswith("```"):
+            cleaned = cleaned.replace("```json", "").replace("```", "").strip()
+
         try:
-            parsed_output = json.loads(raw_output)
+            parsed_output = json.loads(cleaned)
         except:
-            parsed_output = {"raw_text": raw_output}
+            parsed_output = {"raw_text": cleaned}
 
         return {
             "filename": file.filename,
