@@ -8,6 +8,7 @@ import psycopg2
 
 app = FastAPI()
 
+# ✅ CORS (allows frontend to call backend)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,11 +19,15 @@ app.add_middleware(
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# ✅ DATABASE CONNECTION
 DATABASE_URL = os.getenv("DATABASE_URL")
 conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
 
 
+# -------------------------
+# BASIC ROUTES
+# -------------------------
 @app.get("/")
 def home():
     return {"message": "DocSnap API is running 🚀"}
@@ -33,6 +38,9 @@ def test():
     return {"status": "working"}
 
 
+# -------------------------
+# GET ALL INVOICES
+# -------------------------
 @app.get("/invoices")
 def get_invoices():
     try:
@@ -43,15 +51,16 @@ def get_invoices():
         """)
 
         rows = cursor.fetchall()
+
         invoices = []
 
         for row in rows:
             invoices.append({
                 "client_name": row[0],
                 "invoice_date": row[1],
-                "total_amount": float(row[2]) if row[2] is not None else 0,
+                "total_amount": float(row[2]),
                 "category": row[3],
-                "services": row[4],
+                "services": json.loads(row[4]) if isinstance(row[4], str) else row[4],
                 "created_at": str(row[5])
             })
 
@@ -61,6 +70,9 @@ def get_invoices():
         return {"error": str(e)}
 
 
+# -------------------------
+# UPLOAD + AI EXTRACTION + SAVE
+# -------------------------
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     try:
@@ -117,6 +129,7 @@ Repairs, Utilities, Rent, Supplies, Food, Marketing, Software, Transportation, P
         raw_output = response.choices[0].message.content
         cleaned = raw_output.strip()
 
+        # Remove markdown if AI returns ```json
         if cleaned.startswith("```"):
             cleaned = cleaned.replace("```json", "").replace("```", "").strip()
 
@@ -125,6 +138,7 @@ Repairs, Utilities, Rent, Supplies, Food, Marketing, Software, Transportation, P
         except:
             parsed_output = {"raw_text": cleaned}
 
+        # ✅ SAVE TO DATABASE
         if "client_name" in parsed_output:
             cursor.execute("""
                 INSERT INTO invoices (client_name, invoice_date, total_amount, category, services)
