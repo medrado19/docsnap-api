@@ -86,6 +86,7 @@ Return ONLY JSON in this format:
   "client_name": "",
   "invoice_date": "",
   "total_amount": 0,
+  "category": "",
   "services": [
     {
       "description": "",
@@ -95,7 +96,9 @@ Return ONLY JSON in this format:
     }
   ]
 }
-"""
+
+Choose one clear category, such as:
+Repairs, Utilities, Rent, Supplies, Food, Marketing, Software, Transportation, Professional Services, Other.
                         },
                         {
                             "type": "image_url",
@@ -122,17 +125,16 @@ Return ONLY JSON in this format:
 
         # ✅ THIS IS THE IMPORTANT PART (STEP 4)
         if "client_name" in parsed_output:
-            cursor.execute("""
-                INSERT INTO invoices (client_name, invoice_date, total_amount, services)
-                VALUES (%s, %s, %s, %s)
-            """, (
-                parsed_output.get("client_name"),
-                parsed_output.get("invoice_date"),
-                parsed_output.get("total_amount"),
-                json.dumps(parsed_output.get("services"))
-            ))
-
-            conn.commit()
+cursor.execute("""
+    INSERT INTO invoices (client_name, invoice_date, total_amount, category, services)
+    VALUES (%s, %s, %s, %s, %s)
+""", (
+    parsed_output.get("client_name"),
+    parsed_output.get("invoice_date"),
+    parsed_output.get("total_amount"),
+    parsed_output.get("category"),
+    json.dumps(parsed_output.get("services"))
+))     conn.commit()
 
         return {
             "filename": file.filename,
