@@ -18,7 +18,6 @@ app.add_middleware(
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ✅ DATABASE CONNECTION
 DATABASE_URL = os.getenv("DATABASE_URL")
 conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
@@ -34,29 +33,32 @@ def test():
     return {"status": "working"}
 
 
-# ✅ NEW: GET ALL INVOICES
 @app.get("/invoices")
 def get_invoices():
-    cursor.execute("""
-        SELECT client_name, invoice_date, total_amount, services, created_at
-        FROM invoices
-        ORDER BY created_at DESC
-    """)
-    
-    rows = cursor.fetchall()
+    try:
+        cursor.execute("""
+            SELECT client_name, invoice_date, total_amount, category, services, created_at
+            FROM invoices
+            ORDER BY created_at DESC
+        """)
 
-    result = []
+        rows = cursor.fetchall()
+        invoices = []
 
-    for row in rows:
-        result.append({
-            "client_name": row[0],
-            "invoice_date": row[1],
-            "total_amount": row[2],
-            "services": row[3],
-            "created_at": str(row[4])
-        })
+        for row in rows:
+            invoices.append({
+                "client_name": row[0],
+                "invoice_date": row[1],
+                "total_amount": float(row[2]) if row[2] is not None else 0,
+                "category": row[3],
+                "services": row[4],
+                "created_at": str(row[5])
+            })
 
-    return result
+        return invoices
+
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.post("/upload")
@@ -78,7 +80,7 @@ async def upload_file(file: UploadFile = File(...)):
                     "content": [
                         {
                             "type": "text",
-                           "text": """
+                            "text": """
 Extract the invoice data AND categorize it.
 
 Return ONLY JSON in this format:
@@ -113,7 +115,6 @@ Repairs, Utilities, Rent, Supplies, Food, Marketing, Software, Transportation, P
         )
 
         raw_output = response.choices[0].message.content
-
         cleaned = raw_output.strip()
 
         if cleaned.startswith("```"):
@@ -124,48 +125,24 @@ Repairs, Utilities, Rent, Supplies, Food, Marketing, Software, Transportation, P
         except:
             parsed_output = {"raw_text": cleaned}
 
-        # ✅ THIS IS THE IMPORTANT PART (STEP 4)
         if "client_name" in parsed_output:
-cursor.execute("""
-    INSERT INTO invoices (client_name, invoice_date, total_amount, category, services)
-    VALUES (%s, %s, %s, %s, %s)
-""", (
-    parsed_output.get("client_name"),
-    parsed_output.get("invoice_date"),
-    parsed_output.get("total_amount"),
-    parsed_output.get("category"),
-    json.dumps(parsed_output.get("services"))
-))    
-    conn.commit()
+            cursor.execute("""
+                INSERT INTO invoices (client_name, invoice_date, total_amount, category, services)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+                parsed_output.get("client_name"),
+                parsed_output.get("invoice_date"),
+                parsed_output.get("total_amount"),
+                parsed_output.get("category"),
+                json.dumps(parsed_output.get("services"))
+            ))
+
+            conn.commit()
 
         return {
             "filename": file.filename,
             "structured_data": parsed_output
         }
-
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/invoices")
-def get_invoices():
-    try:
-        cursor.execute("""
-    SELECT client_name, invoice_date, total_amount, category, services, created_at
-    FROM invoices
-    ORDER BY created_at DESC
-""")
-        invoices = []
-        for row in rows:
-            invoices.append({
-                "id": row[0],
-                "client_name": row[1],
-                "invoice_date": row[2],
-                "total_amount": float(row[3]),
-                "services": json.loads(row[4]) if isinstance(row[4], str) else row[4],
-                "created_at": str(row[5])
-            })
-
-        return invoices
 
     except Exception as e:
         return {"error": str(e)}
