@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 import base64
 import os
+import json
 from openai import OpenAI
 
 app = FastAPI()
@@ -10,34 +11,29 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def home():
     return {"message": "DocSnap API is running 🚀"}
 
-@app.get("/test")
-def test():
-    return {"status": "working"}
-
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         encoded = base64.b64encode(contents).decode()
-
         data_url = f"data:{file.content_type};base64,{encoded}"
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
+                    "role": "system",
+                    "content": "You are a strict JSON generator. You ONLY return valid JSON. No text. No explanations."
+                },
+                {
                     "role": "user",
                     "content": [
                         {
                             "type": "text",
                             "text": """
-Extract the invoice data from this image.
+Extract the invoice data.
 
-Return ONLY valid JSON.
-Do not include explanations.
-Do not use markdown.
-
-Use this exact format:
+Return ONLY JSON in this format:
 {
   "client_name": "",
   "invoice_date": "",
@@ -64,10 +60,17 @@ Use this exact format:
             ]
         )
 
+        raw_output = response.choices[0].message.content
+
+        # 🔥 Try to convert to real JSON
+        try:
+            parsed_output = json.loads(raw_output)
+        except:
+            parsed_output = {"raw_text": raw_output}
+
         return {
             "filename": file.filename,
-            "content_type": file.content_type,
-            "ai_output": response.choices[0].message.content
+            "structured_data": parsed_output
         }
 
     except Exception as e:
