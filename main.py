@@ -1,15 +1,29 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 import base64
 import os
 import json
 from openai import OpenAI
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.get("/")
 def home():
     return {"message": "DocSnap API is running 🚀"}
+
+@app.get("/test")
+def test():
+    return {"status": "working"}
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -23,7 +37,7 @@ async def upload_file(file: UploadFile = File(...)):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a strict JSON generator. You ONLY return valid JSON. No text. No explanations."
+                    "content": "You are a strict JSON generator. You only return valid JSON."
                 },
                 {
                     "role": "user",
@@ -62,7 +76,6 @@ Return ONLY JSON in this format:
 
         raw_output = response.choices[0].message.content
 
-        # 🔥 Try to convert to real JSON
         try:
             parsed_output = json.loads(raw_output)
         except:
