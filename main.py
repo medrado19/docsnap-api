@@ -94,3 +94,11 @@ Return ONLY JSON in this format:
 
     except Exception as e:
         return {"error": str(e)}
+
+import os
+import psycopg2
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+conn = psycopg2.connect(DATABASE_URL)
+cursor = conn.cursor()
