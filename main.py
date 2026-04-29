@@ -141,3 +141,25 @@ Return ONLY JSON in this format:
 
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/invoices")
+def get_invoices():
+    try:
+        cursor.execute("SELECT * FROM invoices ORDER BY created_at DESC")
+        rows = cursor.fetchall()
+
+        invoices = []
+        for row in rows:
+            invoices.append({
+                "id": row[0],
+                "client_name": row[1],
+                "invoice_date": row[2],
+                "total_amount": float(row[3]),
+                "services": json.loads(row[4]) if isinstance(row[4], str) else row[4],
+                "created_at": str(row[5])
+            })
+
+        return invoices
+
+    except Exception as e:
+        return {"error": str(e)}
